@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNebulaChat } from "../lib/chatSession";
 import ContractActions from "./ContractActions";
 import { useActiveAccount } from "thirdweb/react";
@@ -13,11 +13,20 @@ export default function NebulaChat() {
     isLoading, 
     error,
     sendMessage, 
+    refreshWalletContext,
     pendingTransactions,
     transactionDisplayData,
     clearTransactions,
-    walletAddress
+    walletAddress,
+    missingWalletWarning
   } = useNebulaChat();
+
+  // When wallet connects, refresh wallet context with Nebula if we have existing conversation
+  useEffect(() => {
+    if (activeAccount?.address && messages.length > 0) {
+      refreshWalletContext();
+    }
+  }, [activeAccount?.address, messages.length, refreshWalletContext]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
@@ -46,6 +55,13 @@ export default function NebulaChat() {
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
           <p className="text-sm font-medium">Wallet connected</p>
           <p className="text-xs truncate">Address: {walletAddress}</p>
+        </div>
+      )}
+
+      {missingWalletWarning && (
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md text-orange-700">
+          <p className="text-sm font-medium">Wallet Required for Transaction</p>
+          <p className="text-xs">Nebula has prepared transaction(s) but needs your connected wallet. Please connect your wallet.</p>
         </div>
       )}
 
