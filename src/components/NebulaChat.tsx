@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNebulaChat } from "../lib/chatSession";
 import ContractActions from "./ContractActions";
 import { useActiveAccount } from "thirdweb/react";
@@ -8,6 +8,8 @@ import { useActiveAccount } from "thirdweb/react";
 export default function NebulaChat() {
   const [input, setInput] = useState("");
   const activeAccount = useActiveAccount();
+  const walletRefreshedRef = useRef(false);
+  
   const { 
     messages, 
     isLoading, 
@@ -21,12 +23,17 @@ export default function NebulaChat() {
     missingWalletWarning
   } = useNebulaChat();
 
-  // When wallet connects, refresh wallet context with Nebula if we have existing conversation
+  // When wallet connects, refresh wallet context with Nebula ONCE if we have existing conversation
   useEffect(() => {
-    if (activeAccount?.address && messages.length > 0) {
+    // Only refresh wallet context if:
+    // 1. Wallet is connected
+    // 2. We have messages in the chat
+    // 3. We haven't refreshed before
+    if (activeAccount?.address && messages.length > 0 && !walletRefreshedRef.current) {
+      walletRefreshedRef.current = true; // Mark as refreshed
       refreshWalletContext();
     }
-  }, [activeAccount?.address, messages.length, refreshWalletContext]);
+  }, [activeAccount?.address, refreshWalletContext]);
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;

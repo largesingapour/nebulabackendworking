@@ -170,31 +170,33 @@ export function useNebulaChat() {
     try {
       setIsLoading(true);
       
-      // Get last user message
-      const lastUserMessageIndex = [...messages].reverse().findIndex(m => m.role === 'user');
-      if (lastUserMessageIndex === -1) return; // No user messages yet
-      
-      const lastUserMessage = [...messages].reverse()[lastUserMessageIndex];
-      
-      // Inform Nebula about the wallet with a transparent message to the user
-      const walletUpdateMessage: Message = { 
-        role: 'user', 
+      // We'll add a silent message only to Nebula's context, not visible to user
+      const walletUpdateMessage = { 
+        role: 'user' as const, 
         content: `My wallet is now connected. Address: ${address}. Please use this for any transactions.` 
       };
       
-      setMessages(prev => [...prev, walletUpdateMessage]);
+      // Don't add this message to the visible chat
+      // Instead, just use it for the API call
       
       const response = await Nebula.chat({
         client,
         messages: [...messages, walletUpdateMessage]
       });
       
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: response.message || 'I can now prepare transactions for your connected wallet.'
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
+      // Only add Nebula's response if it contains meaningful content
+      // or transactions, otherwise stay silent
+      if (
+        (response.message && response.message.trim() !== 'I can now prepare transactions for your connected wallet.') || 
+        (response.transactions && response.transactions.length > 0)
+      ) {
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: response.message || 'I can now prepare transactions for your connected wallet.'
+        };
+        
+        setMessages(prev => [...prev, assistantMessage]);
+      }
       
       // Check if we now have transactions
       if (response.transactions && response.transactions.length > 0) {
