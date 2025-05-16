@@ -37,8 +37,27 @@ export default function NebulaChat() {
 
   const handleSendMessage = async () => {
     if (!input.trim()) return;
-    const userInput = input;
+    const userInput = input.trim();
     setInput("");
+    
+    // Check if this might be a transaction-related query
+    const transactionKeywords = [
+      'send', 'transfer', 'eth', 'token', 'transaction', 'pay', 'swap',
+      'buy', 'purchase', 'trade', 'exchange', 'bridge', '0x', 'gas', 'fee'
+    ];
+    
+    const mightBeTransactionQuery = transactionKeywords.some(keyword => 
+      userInput.toLowerCase().includes(keyword)
+    );
+    
+    // For transaction-related queries, always refresh wallet context first
+    if (mightBeTransactionQuery && activeAccount?.address) {
+      console.log('Transaction-related query detected, refreshing wallet context');
+      await refreshWalletContext();
+      // Short delay to ensure context is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
     await sendMessage(userInput);
   };
 
@@ -124,6 +143,23 @@ export default function NebulaChat() {
               }}
               onComplete={clearTransactions}
             />
+          </div>
+        )}
+
+        {messages.length > 0 && 
+          messages[messages.length-1].role === 'assistant' && 
+          messages[messages.length-1].content.includes('issue connecting to your wallet') && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={async () => {
+                await refreshWalletContext();
+                // Add a specific retry message
+                await sendMessage('Retry the transaction with my connected wallet now. My wallet is definitely connected.');
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              Retry With Connected Wallet
+            </button>
           </div>
         )}
       </div>

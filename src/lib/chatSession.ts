@@ -44,13 +44,20 @@ export function useNebulaChat() {
   useEffect(() => {
     if (messages.length === 0) {
       // Add an initial system message that won't be shown to the user
+      let systemContent = 'I am Nebula, an AI assistant that can help with blockchain transactions.';
+      
+      // If wallet is already connected, include it in the system message
+      if (address) {
+        systemContent += `\n\nThe user's wallet is connected with address: ${address}.\nEthereum Chain ID: 1\nThis wallet is authorized for transactions.`;
+      }
+      
       const systemContext: Message = {
         role: 'assistant',
-        content: 'I am Nebula, an AI assistant that can help with blockchain transactions.'
+        content: systemContent
       };
       setMessages([systemContext]);
     }
-  }, []);
+  }, [address]);
 
   // Effect to update pending transactions when wallet connects/disconnects
   useEffect(() => {
@@ -89,9 +96,9 @@ export function useNebulaChat() {
       // Create message for Nebula with wallet context
       let modifiedContent = content;
       
-      // Always append wallet address if available, with clear formatting
+      // Always append wallet address if available, with clear formatting and specific transaction wording
       if (currentWalletAddress) {
-        modifiedContent = `${content}\n\nMy connected wallet address is: ${currentWalletAddress}\nPlease use this wallet for any transactions.`;
+        modifiedContent = `${content}\n\n===WALLET CONTEXT===\nMy connected wallet address: ${currentWalletAddress}\nEthereum Chain ID: 1\nPlease use this wallet address for any transactions I request.\nI authorize transactions from this wallet address.\n=================`;
         console.log('Sending to Nebula with wallet address:', currentWalletAddress);
       } else {
         console.log('Warning: No wallet address available for Nebula');
@@ -173,11 +180,13 @@ export function useNebulaChat() {
       // We'll add a silent message only to Nebula's context, not visible to user
       const walletUpdateMessage = { 
         role: 'user' as const, 
-        content: `My wallet is now connected. Address: ${address}. Please use this for any transactions.` 
+        content: `===WALLET CONTEXT UPDATE===\nMy connected wallet address: ${address}\nEthereum Chain ID: 1\nPlease use this wallet address for any transactions I request.\nI authorize transactions from this wallet address.\nThis is an explicit wallet authorization message.\n=================` 
       };
       
       // Don't add this message to the visible chat
       // Instead, just use it for the API call
+      
+      console.log('Refreshing wallet context with Nebula:', address);
       
       const response = await Nebula.chat({
         client,
@@ -187,7 +196,9 @@ export function useNebulaChat() {
       // Only add Nebula's response if it contains meaningful content
       // or transactions, otherwise stay silent
       if (
-        (response.message && response.message.trim() !== 'I can now prepare transactions for your connected wallet.') || 
+        (response.message && 
+         response.message.trim() !== 'I can now prepare transactions for your connected wallet.' &&
+         !response.message.includes('issue connecting to your wallet')) || 
         (response.transactions && response.transactions.length > 0)
       ) {
         const assistantMessage: Message = {
