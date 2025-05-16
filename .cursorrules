@@ -1,0 +1,54 @@
+[formatting]
+style = prettier
+line_width = 100
+bracket_spacing = true
+semi = true
+single_quote = true
+trailing_comma = all
+jsx_bracket_same_line = false
+
+[language]
+typescript = true
+javascript = true
+jsx = true
+tsx = true
+
+[ai]
+prefer_explicit_exports = true
+prefer_interface_over_type = true
+auto_imports = true
+prefer_relative_imports = true
+infer_types = true
+await_async_functions = true
+
+[project]
+folder_structure = src/components, src/lib, src/app
+component_naming = PascalCase
+pages_naming = camelCase
+
+[web3]
+persistent_wallet_context = true
+enforce_checksum_addresses = true
+no_address_abbreviation = true
+transaction_hash_formatting = codeblock
+
+[react]
+use_function_components = true
+hook_naming_prefix = use
+prop_interface_prefix = Props
+
+[eslint]
+extend = next/core-web-vitals
+
+[typescript]
+strict_null_checks = true
+no_explicit_any = true
+
+[comments]
+prefer_jsdoc = true
+
+[documentation]
+prefer_markdown = true
+
+[imports]
+order = std, react, thirdweb, project, style
