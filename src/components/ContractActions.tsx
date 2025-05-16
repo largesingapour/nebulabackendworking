@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSendTransaction, useActiveAccount } from 'thirdweb/react';
 import { client } from '../lib/thirdwebClient';
+import { ethers } from 'ethers';
 
 // Display type for transaction UI
 type TransactionDisplayData = {
@@ -31,6 +32,9 @@ function TransactionDisplay({
     <div className="border rounded-lg shadow-sm overflow-hidden">
       <div className="p-4 bg-blue-50 border-b">
         <h3 className="text-lg font-bold">Transaction Details</h3>
+        <p className="text-sm text-gray-600">
+          Review the transaction and confirm with your wallet
+        </p>
       </div>
       
       <div className="p-4 space-y-3">
@@ -44,9 +48,9 @@ function TransactionDisplay({
                 <span className="font-semibold">Function:</span> {tx.functionName}
               </div>
             )}
-            {tx.value && (
+            {tx.value && Number(tx.value) > 0 && (
               <div className="text-sm">
-                <span className="font-semibold">Value:</span> {tx.value} ETH
+                <span className="font-semibold">Value:</span> {ethers.formatEther(tx.value)} ETH
               </div>
             )}
             {tx.data && (
@@ -113,6 +117,9 @@ export default function ContractActions({
 }) {
   const [showConfirm, setShowConfirm] = useState(true); // Default to showing the confirm dialog
   const [currentTxIndex, setCurrentTxIndex] = useState<number | null>(null);
+  const [txStatus, setTxStatus] = useState<'idle' | 'preparing' | 'waiting' | 'success' | 'error'>('idle');
+  const [txHash, setTxHash] = useState<string | null>(null);
+  
   const account = useActiveAccount();
   
   // Hook for transactions
@@ -135,8 +142,11 @@ export default function ContractActions({
       // Find the matching transaction in the transactions array
       const index = displayData.findIndex(item => item.to === tx.to);
       if (index >= 0) {
+        setTxStatus('preparing');
         setCurrentTxIndex(index);
         const rawTx = transactions[index];
+        
+        console.log('Sending transaction:', rawTx);
         
         // Send the transaction through the wallet according to thirdweb v5 pattern
         sendTransaction({
@@ -146,9 +156,12 @@ export default function ContractActions({
           chain: rawTx.chainId,
           client
         });
+        
+        setTxStatus('waiting');
       }
     } catch (err) {
       console.error('Error sending transaction:', err);
+      setTxStatus('error');
       if (onError) onError(err as Error);
     }
   };
@@ -156,12 +169,16 @@ export default function ContractActions({
   // Handle transaction rejection
   const handleReject = () => {
     setShowConfirm(false);
+    setTxStatus('idle');
     onComplete?.();
   };
 
   // Handle success
   useEffect(() => {
     if (isSuccess && receipt) {
+      setTxStatus('success');
+      setTxHash(receipt.transactionHash);
+      
       if (onSuccess) onSuccess({ receipt, index: currentTxIndex });
       if (showConfirm) setShowConfirm(false);
       onComplete?.();
@@ -170,8 +187,9 @@ export default function ContractActions({
 
   // Handle errors
   useEffect(() => {
-    if (error && onError) {
-      onError(error as Error);
+    if (error) {
+      setTxStatus('error');
+      if (onError) onError(error as Error);
     }
   }, [error, onError]);
 
@@ -190,7 +208,7 @@ export default function ContractActions({
         />
       ) : null}
 
-      {error && (
+      {txStatus === 'error' && error && (
         <div className="mt-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
           <p className="font-semibold">Transaction failed</p>
           <p className="text-sm">{(error as Error).message}</p>
@@ -203,10 +221,19 @@ export default function ContractActions({
         </div>
       )}
 
-      {isSuccess && receipt && (
+      {txStatus === 'success' && txHash && (
         <div className="mt-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
           <p className="font-semibold">Transaction successful!</p>
-          <p className="text-sm">Transaction hash: <span className="font-mono">{receipt.transactionHash}</span></p>
+          <p className="text-sm">
+            Transaction hash: <a 
+              href={`https://etherscan.io/tx/${txHash}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="underline hover:text-green-800"
+            >
+              {txHash.slice(0, 10)}...{txHash.slice(-8)}
+            </a>
+          </p>
         </div>
       )}
     </div>

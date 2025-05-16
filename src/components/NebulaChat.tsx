@@ -91,6 +91,19 @@ export default function NebulaChat() {
         </div>
       )}
 
+      {!activeAccount && messages.length === 0 && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <h3 className="text-lg font-medium mb-2">How to use this assistant:</h3>
+          <ol className="list-decimal pl-5 space-y-2">
+            <li>Connect your wallet using the button above</li>
+            <li>Ask Nebula to prepare a transaction (e.g., "Send 0.0001 ETH to vitalik.eth")</li>
+            <li>Review the transaction details that Nebula prepared</li>
+            <li>Click "Sign & Send" to trigger your wallet for confirmation</li>
+            <li>Approve the transaction in your wallet (MetaMask, etc.)</li>
+          </ol>
+        </div>
+      )}
+
       <div className="mb-4 space-y-4">
         {messages.length === 0 ? (
           <div className="text-center p-6 text-gray-500">
