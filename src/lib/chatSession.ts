@@ -11,8 +11,10 @@ type Message = {
 type TransactionDisplayData = {
   to: string;
   value?: string;
+  data?: string;
   functionName?: string;
   args?: any[];
+  chainId?: string;
 };
 
 // Custom hook for managing a chat session with Nebula AI
@@ -64,8 +66,10 @@ export function useNebulaChat() {
         const displayData = response.transactions.map((tx: any) => ({
           to: tx.to,
           value: tx.value ? tx.value.toString() : undefined,
+          data: tx.data,
           functionName: tx.functionName || 'Transfer',
-          args: tx.args || []
+          args: tx.args || [],
+          chainId: tx.chainId
         }));
         
         setTransactionDisplayData(displayData);
@@ -102,7 +106,7 @@ export function useNebulaChat() {
     error,
     sendMessage,
     clearChat,
-    pendingTransactions: pendingTransactions.length > 0 ? pendingTransactions[0] : null, // Currently only supporting single transaction
+    pendingTransactions: pendingTransactions,
     transactionDisplayData,
     clearTransactions,
     hasWallet: !!address,

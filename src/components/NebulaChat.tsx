@@ -84,15 +84,16 @@ export default function NebulaChat() {
           </div>
         )}
 
-        {pendingTransactions && transactionDisplayData.length > 0 && (
+        {pendingTransactions && pendingTransactions.length > 0 && (
           <div className="mt-4 p-4 border border-blue-200 bg-blue-50 rounded-lg">
             <h3 className="text-lg font-bold mb-2">Transaction Ready</h3>
-            <p className="mb-4">Nebula has prepared a transaction for you to sign.</p>
+            <p className="mb-4">Nebula has prepared {pendingTransactions.length > 1 ? `${pendingTransactions.length} transactions` : 'a transaction'} for you to sign.</p>
             
             <ContractActions
-              preparedTransaction={pendingTransactions}
+              transactions={pendingTransactions}
               displayData={transactionDisplayData}
-              onSuccess={() => {
+              onSuccess={(data) => {
+                console.log('Transaction successful:', data);
                 clearTransactions();
               }}
               onError={(error) => {

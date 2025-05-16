@@ -1,19 +1,22 @@
 "use client";
 
-import { useState } from 'react';
-import { useSendTransaction } from 'thirdweb/react';
+import { useState, useEffect } from 'react';
+import { useSendTransaction, useActiveAccount } from 'thirdweb/react';
+import { client } from '../lib/thirdwebClient';
 
 // Display type for transaction UI
 type TransactionDisplayData = {
   to: string;
   value?: string;
+  data?: string;
   functionName?: string;
   args?: any[];
+  chainId?: any;
 };
 
 type TransactionDisplayProps = {
   transactions: TransactionDisplayData[];
-  onAccept: () => void;
+  onAccept: (tx: TransactionDisplayData) => void;
   onReject: () => void;
   isLoading: boolean;
 };
@@ -46,6 +49,11 @@ function TransactionDisplay({
                 <span className="font-semibold">Value:</span> {tx.value} ETH
               </div>
             )}
+            {tx.data && (
+              <div className="text-sm">
+                <span className="font-semibold">Data:</span> {tx.data.slice(0, 24)}...
+              </div>
+            )}
             {tx.args && tx.args.length > 0 && (
               <div className="text-sm">
                 <span className="font-semibold">Arguments:</span>
@@ -54,6 +62,25 @@ function TransactionDisplay({
                 </pre>
               </div>
             )}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => onAccept(tx)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : (
+                  'Sign & Send'
+                )}
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -64,24 +91,7 @@ function TransactionDisplay({
           className="px-4 py-2 text-gray-700 border rounded-md hover:bg-gray-100"
           disabled={isLoading}
         >
-          Cancel
-        </button>
-        <button
-          onClick={onAccept}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <span className="flex items-center">
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Processing...
-            </span>
-          ) : (
-            'Sign & Send'
-          )}
+          Cancel All
         </button>
       </div>
     </div>
@@ -89,38 +99,57 @@ function TransactionDisplay({
 }
 
 export default function ContractActions({ 
-  preparedTransaction,
+  transactions,
   displayData = [],
   onSuccess,
   onError,
   onComplete
 }: { 
-  preparedTransaction: any; // The prepared transaction from thirdweb SDK or Nebula
+  transactions: any[]; // Array of transactions from Nebula
   displayData: TransactionDisplayData[]; // User-friendly display data
   onSuccess?: (data: any) => void;
   onError?: (error: Error) => void;
   onComplete?: () => void;
 }) {
   const [showConfirm, setShowConfirm] = useState(true); // Default to showing the confirm dialog
+  const [currentTxIndex, setCurrentTxIndex] = useState<number | null>(null);
+  const account = useActiveAccount();
   
   // Hook for transactions
   const { 
     mutate: sendTransaction, 
     isPending: isLoading,
     isSuccess,
-    error
+    error,
+    data: receipt
   } = useSendTransaction();
 
   // Handle transaction confirmation
-  const handleAccept = () => {
-    if (preparedTransaction) {
-      try {
-        // Send the transaction through the wallet
-        sendTransaction(preparedTransaction);
-      } catch (err) {
-        console.error('Error sending transaction:', err);
-        if (onError) onError(err as Error);
+  const handleAccept = (tx: TransactionDisplayData) => {
+    if (!account) {
+      if (onError) onError(new Error('No wallet connected'));
+      return;
+    }
+
+    try {
+      // Find the matching transaction in the transactions array
+      const index = displayData.findIndex(item => item.to === tx.to);
+      if (index >= 0) {
+        setCurrentTxIndex(index);
+        const rawTx = transactions[index];
+        
+        // Send the transaction through the wallet according to thirdweb v5 pattern
+        sendTransaction({
+          to: rawTx.to,
+          value: rawTx.value,
+          data: rawTx.data,
+          chain: rawTx.chainId,
+          client
+        });
       }
+    } catch (err) {
+      console.error('Error sending transaction:', err);
+      if (onError) onError(err as Error);
     }
   };
 
@@ -131,19 +160,22 @@ export default function ContractActions({
   };
 
   // Handle success
-  if (isSuccess) {
-    if (onSuccess) onSuccess(sendTransaction);
-    if (showConfirm) setShowConfirm(false);
-    onComplete?.();
-  }
+  useEffect(() => {
+    if (isSuccess && receipt) {
+      if (onSuccess) onSuccess({ receipt, index: currentTxIndex });
+      if (showConfirm) setShowConfirm(false);
+      onComplete?.();
+    }
+  }, [isSuccess, receipt, currentTxIndex, onSuccess, onComplete, showConfirm]);
 
   // Handle errors
-  if (error && onError) {
-    onError(error as Error);
-    // Don't hide the dialog on error to allow retry
-  }
+  useEffect(() => {
+    if (error && onError) {
+      onError(error as Error);
+    }
+  }, [error, onError]);
 
-  if (!preparedTransaction || displayData.length === 0) {
+  if (!transactions || transactions.length === 0 || displayData.length === 0) {
     return null;
   }
 
@@ -171,10 +203,10 @@ export default function ContractActions({
         </div>
       )}
 
-      {isSuccess && (
+      {isSuccess && receipt && (
         <div className="mt-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded">
           <p className="font-semibold">Transaction successful!</p>
-          <p className="text-sm">Your transaction has been submitted to the blockchain.</p>
+          <p className="text-sm">Transaction hash: <span className="font-mono">{receipt.transactionHash}</span></p>
         </div>
       )}
     </div>
