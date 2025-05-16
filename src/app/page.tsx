@@ -1,12 +1,16 @@
 import ConnectWallet from "../components/ConnectWallet";
-import NebulaChat from "../components/NebulaChat";
+import SimpleNebulaTransactions from "../components/SimpleNebulaTransactions";
 
 export default function Home() {
   return (
-    <main>
-      <h1>Nebula Blockchain Assistant</h1>
-      <ConnectWallet />
-      <NebulaChat />
+    <main className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6 text-center">Nebula Blockchain Assistant</h1>
+      
+      <div className="mb-6">
+        <ConnectWallet />
+      </div>
+      
+      <SimpleNebulaTransactions />
     </main>
   );
 }
